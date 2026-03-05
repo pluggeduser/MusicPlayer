@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/song.dart';
 import '../providers/music_providers.dart';
 import '../screens/player_screen.dart';
 
@@ -33,32 +32,88 @@ class PlayerBar extends ConsumerWidget {
             ),
           ],
         ),
-        child: ListTile(
-          leading: Hero(
-            tag: 'album_art',
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Image.network(
-                currentSong.thumbnailUrl,
-                width: 50,
-                height: 50,
-                fit: BoxFit.cover,
+        child: Row(
+          children: [
+            // Album art
+            Hero(
+              tag: 'album_art',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.network(
+                  currentSong.thumbnailUrl,
+                  width: 56,
+                  height: 70,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 56,
+                    height: 70,
+                    color: Colors.grey[800],
+                    child: const Icon(Icons.music_note),
+                  ),
+                ),
               ),
             ),
-          ),
-          title: Text(currentSong.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(currentSong.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
-          trailing: IconButton(
-            icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-            onPressed: () {
-              final playerService = ref.read(playerServiceProvider);
-              if (isPlaying) {
-                playerService.pause();
-              } else {
-                playerService.resume();
-              }
-            },
-          ),
+            const SizedBox(width: 12),
+            // Song info
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    currentSong.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    currentSong.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            // Skip Previous
+            IconButton(
+              icon: const Icon(Icons.skip_previous_rounded),
+              onPressed: () async {
+                await ref.read(playerServiceProvider).skipToPrevious();
+                final svc = ref.read(playerServiceProvider);
+                if (svc.currentSong != null) {
+                  ref.read(currentSongProvider.notifier).state =
+                      svc.currentSong;
+                }
+              },
+            ),
+            // Play / Pause
+            IconButton(
+              iconSize: 36,
+              icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+              onPressed: () {
+                final playerService = ref.read(playerServiceProvider);
+                if (isPlaying) {
+                  playerService.pause();
+                } else {
+                  playerService.resume();
+                }
+              },
+            ),
+            // Skip Next
+            IconButton(
+              icon: const Icon(Icons.skip_next_rounded),
+              onPressed: () async {
+                await ref.read(playerServiceProvider).skipToNext();
+                final svc = ref.read(playerServiceProvider);
+                if (svc.currentSong != null) {
+                  ref.read(currentSongProvider.notifier).state =
+                      svc.currentSong;
+                }
+              },
+            ),
+            const SizedBox(width: 4),
+          ],
         ),
       ),
     );

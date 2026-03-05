@@ -11,24 +11,26 @@ void main() async {
 
   runApp(
     const ProviderScope(
-      child: MusicPlayerApp(),
+      child: PlayerApp(),
     ),
   );
 }
 
-class MusicPlayerApp extends StatelessWidget {
-  const MusicPlayerApp({super.key});
+class PlayerApp extends StatelessWidget {
+  const PlayerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Music Player',
+      title: 'Player',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
+          seedColor: const Color(0xFF7B2FBE),
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
+        fontFamily: 'Roboto',
       ),
       home: const MainLayout(),
     );
@@ -57,16 +59,19 @@ class MainLayout extends ConsumerWidget {
           const PlayerBar(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: navIndex,
-        onTap: (index) => ref.read(navIndexProvider.notifier).state = index,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: navIndex,
+        onDestinationSelected: (index) =>
+            ref.read(navIndexProvider.notifier).state = index,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.search_rounded),
+            selectedIcon: Icon(Icons.search_rounded),
             label: 'Search',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.library_music),
+          NavigationDestination(
+            icon: Icon(Icons.library_music_outlined),
+            selectedIcon: Icon(Icons.library_music_rounded),
             label: 'Library',
           ),
         ],
