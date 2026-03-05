@@ -137,11 +137,16 @@ final playerDurationProvider = StreamProvider<Duration?>((ref) {
 // Navigation State
 final navIndexProvider = StateProvider<int>((ref) => 0);
 
+// Tracks whether we're fetching a stream URL (shows loading in UI)
+final isFetchingAudioProvider = StateProvider<bool>((ref) => false);
+
 // Helper: play a queue of songs
-void playQueue(WidgetRef ref, List<Song> songs, {int startIndex = 0, bool shuffle = false}) {
+void playQueue(WidgetRef ref, List<Song> songs,
+    {int startIndex = 0, bool shuffle = false}) {
+  if (songs.isEmpty) return;
   final List<Song> orderedSongs = List.from(songs);
   if (shuffle) orderedSongs.shuffle();
-  
+
   ref.read(queueProvider.notifier).state = orderedSongs;
   ref.read(queueIndexProvider.notifier).state = startIndex;
   ref.read(shuffleModeProvider.notifier).state = shuffle;
@@ -149,25 +154,31 @@ void playQueue(WidgetRef ref, List<Song> songs, {int startIndex = 0, bool shuffl
   final playerService = ref.read(playerServiceProvider);
   playerService.setQueue(orderedSongs, startIndex: startIndex);
 
-  // play first song
   _playSongFromQueue(ref, orderedSongs[startIndex]);
 }
 
-void _playSongFromQueue(WidgetRef ref, Song song) {
+Future<void> _playSongFromQueue(WidgetRef ref, Song song) async {
+  // Update current song immediately so UI shows the song info
   ref.read(currentSongProvider.notifier).state = song;
   final playerService = ref.read(playerServiceProvider);
 
   if (song.localPath != null) {
-    playerService.playSong(song);
+    // Offline: play directly from file
+    await playerService.playSong(song);
   } else {
-    // fetch audio URL then play
-    final ytService = ref.read(ytServiceProvider);
-    ytService.getAudioStreamUrl(song.id).then((url) {
+    // Online: always fetch a fresh URL — YouTube URLs expire within minutes
+    ref.read(isFetchingAudioProvider.notifier).state = true;
+    try {
+      final ytService = ref.read(ytServiceProvider);
+      final url = await ytService.getAudioStreamUrl(song.id);
       final songWithUrl = song.copyWith(audioUrl: url);
+      // Update song with resolved URL
       ref.read(currentSongProvider.notifier).state = songWithUrl;
-      playerService.playSong(songWithUrl);
-    }).catchError((e) {
-      print('Failed to get audio URL: $e');
-    });
+      await playerService.playSong(songWithUrl);
+    } catch (e) {
+      print('Failed to get audio stream URL: $e');
+    } finally {
+      ref.read(isFetchingAudioProvider.notifier).state = false;
+    }
   }
 }

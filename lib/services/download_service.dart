@@ -1,84 +1,106 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:audiotags/audiotags.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../models/song.dart';
 import 'youtube_service.dart';
 
 class DownloadService {
-  final Dio _dio = Dio();
+  final Dio _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(minutes: 5),
+    // YouTube requires these headers for direct stream download
+    headers: {
+      'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+          '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Encoding': 'identity',
+      'Connection': 'keep-alive',
+    },
+  ));
   final YouTubeService _ytService;
 
   DownloadService(this._ytService);
 
-  Future<String?> downloadSong(Song song, {Function(double)? onProgress, String? albumName}) async {
+  Future<String?> downloadSong(
+    Song song, {
+    Function(double)? onProgress,
+    String? albumName,
+  }) async {
     try {
+      // Fetch a fresh stream URL every time
       final audioUrl = await _ytService.getAudioStreamUrl(song.id);
-      final directory = await getApplicationDocumentsAlignment();
-      
+
+      // Use app-private documents directory — no storage permission needed
+      final directory = await getApplicationDocumentsDirectory();
+
       String subPath = 'downloads';
-      if (albumName != null || song.albumName != null) {
-        subPath = p.join('downloads', albumName ?? song.albumName!);
+      final effectiveAlbum = albumName ?? song.albumName;
+      if (effectiveAlbum != null && effectiveAlbum.isNotEmpty) {
+        // Sanitize folder name
+        final safe = effectiveAlbum.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+        subPath = p.join('downloads', safe);
       }
-      
+
       final downloadsDir = Directory(p.join(directory.path, subPath));
       if (!await downloadsDir.exists()) {
         await downloadsDir.create(recursive: true);
       }
 
-      final fileName = '${song.id}.mp3';
-      final filePath = p.join(downloadsDir.path, fileName);
+      // Save as .webm — the actual format YouTube streams return
+      final safeTitle = song.id; // Use ID as filename to avoid special-char issues
+      final filePath = p.join(downloadsDir.path, '$safeTitle.webm');
+
+      // If already downloaded, return path immediately
+      if (await File(filePath).exists()) {
+        return filePath;
+      }
 
       await _dio.download(
         audioUrl,
         filePath,
         onReceiveProgress: (received, total) {
-          if (total != -1) {
+          if (total > 0) {
             onProgress?.call(received / total);
+          } else {
+            // Unknown total — show indeterminate progress at 50%
+            onProgress?.call(0.5);
           }
         },
+        deleteOnError: true,
       );
 
-      // Tag the file with metadata
-      await _tagFile(filePath, song);
+      // Verify file was actually written and has content
+      final file = File(filePath);
+      if (!await file.exists() || await file.length() < 1024) {
+        print('Download error: file empty or missing');
+        return null;
+      }
 
       return filePath;
+    } on DioException catch (e) {
+      print('Download Dio error: ${e.type} — ${e.message}');
+      print('Response: ${e.response?.statusCode}');
+      return null;
     } catch (e) {
       print('Download error: $e');
       return null;
     }
   }
 
-  Future<void> downloadAlbum(List<Song> songs, {Function(int, int)? onOverallProgress}) async {
+  Future<void> downloadAlbum(
+    List<Song> songs, {
+    Function(int, int)? onOverallProgress,
+  }) async {
     for (int i = 0; i < songs.length; i++) {
       onOverallProgress?.call(i, songs.length);
       try {
         await downloadSong(songs[i]);
       } catch (e) {
-        print('Error downloading song ${songs[i].title}: $e');
+        print('Error downloading ${songs[i].title}: $e');
       }
     }
     onOverallProgress?.call(songs.length, songs.length);
-  }
-
-  Future<void> _tagFile(String filePath, Song song) async {
-    try {
-      final tag = Tag(
-        title: song.title,
-        trackArtist: song.artist,
-        album: song.albumName ?? 'YouTube Download',
-        genre: 'Music',
-        year: DateTime.now().year,
-        pictures: [],
-      );
-      await AudioTags.write(filePath, tag);
-    } catch (e) {
-      print('Tagging error: $e');
-    }
-  }
-
-  Future<Directory> getApplicationDocumentsAlignment() async {
-    return await getApplicationDocumentsDirectory();
   }
 }
