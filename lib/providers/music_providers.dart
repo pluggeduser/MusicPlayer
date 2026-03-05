@@ -35,3 +35,6 @@ final playerStateProvider = StreamProvider((ref) {
   final playerService = ref.watch(playerServiceProvider);
   return playerService.playerStateStream;
 });
+
+// Navigation State
+final navIndexProvider = StateProvider<int>((ref) => 0);

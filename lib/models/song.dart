@@ -6,6 +6,7 @@ class Song {
   final Duration duration;
   final String? audioUrl;
   final String? localPath;
+  final String? albumName;
 
   Song({
     required this.id,
@@ -15,11 +16,13 @@ class Song {
     required this.duration,
     this.audioUrl,
     this.localPath,
+    this.albumName,
   });
 
   Song copyWith({
     String? audioUrl,
     String? localPath,
+    String? albumName,
   }) {
     return Song(
       id: id,
@@ -29,6 +32,7 @@ class Song {
       duration: duration,
       audioUrl: audioUrl ?? this.audioUrl,
       localPath: localPath ?? this.localPath,
+      albumName: albumName ?? this.albumName,
     );
   }
 

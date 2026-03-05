@@ -33,6 +33,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.1.25"
+  audiotags:
+    dependency: "direct main"
+    description:
+      name: audiotags
+      sha256: b09ab98c9b7d516470763d33fe974cab710bea1de24b5811339ac1b9e68268de
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.5"
   boolean_selector:
     dependency: transitive
     description:
@@ -178,10 +186,10 @@ packages:
     dependency: transitive
     description:
       name: flutter_rust_bridge
-      sha256: "37ef40bc6f863652e865f0b2563ea07f0d3c58d8efad803cc01933a4b2ee067e"
+      sha256: "35c257fc7f98e34c1314d6c145e5ed54e7c94e8a9f469947e31c9298177d546f"
       url: "https://pub.dev"
     source: hosted
-    version: "2.11.1"
+    version: "2.7.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -196,10 +204,10 @@ packages:
     dependency: transitive
     description:
       name: freezed_annotation
-      sha256: "7294967ff0a6d98638e7acb774aac3af2550777accd8149c90af5b014e6d44d8"
+      sha256: c2e2d632dd9b8a2b7751117abcfc2b4888ecfe181bd9fca7170d9ef02e595fe2
       url: "https://pub.dev"
     source: hosted
-    version: "3.1.0"
+    version: "2.4.4"
   glob:
     dependency: transitive
     description:
@@ -240,6 +248,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  id3:
+    dependency: "direct main"
+    description:
+      name: id3
+      sha256: "24176a6e08db6297c8450079e94569cd8387f913c817e5e3d862be7dc191e0b8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   intl:
     dependency: "direct main"
     description:
@@ -344,14 +360,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.17.0"
-  metadata_god:
-    dependency: "direct main"
-    description:
-      name: metadata_god
-      sha256: "2b19b7e88cf5ab7016fe8d1f868bb35a193aaef06fd96cfc7de4ec3eacc16eb0"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.0"
   mime:
     dependency: transitive
     description:

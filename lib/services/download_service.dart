@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:metadata_god/metadata_god.dart';
+import 'package:audiotags/audiotags.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../models/song.dart';
@@ -12,11 +12,17 @@ class DownloadService {
 
   DownloadService(this._ytService);
 
-  Future<String?> downloadSong(Song song, {Function(double)? onProgress}) async {
+  Future<String?> downloadSong(Song song, {Function(double)? onProgress, String? albumName}) async {
     try {
       final audioUrl = await _ytService.getAudioStreamUrl(song.id);
       final directory = await getApplicationDocumentsAlignment();
-      final downloadsDir = Directory(p.join(directory.path, 'downloads'));
+      
+      String subPath = 'downloads';
+      if (albumName != null || song.albumName != null) {
+        subPath = p.join('downloads', albumName ?? song.albumName!);
+      }
+      
+      final downloadsDir = Directory(p.join(directory.path, subPath));
       if (!await downloadsDir.exists()) {
         await downloadsDir.create(recursive: true);
       }
@@ -44,18 +50,29 @@ class DownloadService {
     }
   }
 
+  Future<void> downloadAlbum(List<Song> songs, {Function(int, int)? onOverallProgress}) async {
+    for (int i = 0; i < songs.length; i++) {
+      onOverallProgress?.call(i, songs.length);
+      try {
+        await downloadSong(songs[i]);
+      } catch (e) {
+        print('Error downloading song ${songs[i].title}: $e');
+      }
+    }
+    onOverallProgress?.call(songs.length, songs.length);
+  }
+
   Future<void> _tagFile(String filePath, Song song) async {
     try {
-      await MetadataGod.writeMetadata(
-        file: filePath,
-        metadata: Metadata(
-          title: song.title,
-          artist: song.artist,
-          album: 'YouTube Download',
-          genre: 'Music',
-          year: DateTime.now().year,
-        ),
+      final tag = Tag(
+        title: song.title,
+        trackArtist: song.artist,
+        album: song.albumName ?? 'YouTube Download',
+        genre: 'Music',
+        year: DateTime.now().year,
+        pictures: [],
       );
+      await AudioTags.write(filePath, tag);
     } catch (e) {
       print('Tagging error: $e');
     }
