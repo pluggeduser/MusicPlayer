@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import '../models/song.dart';
 import 'youtube_service.dart';
 
@@ -48,37 +49,67 @@ class DownloadService {
         await downloadsDir.create(recursive: true);
       }
 
-      // Save as .webm — the actual format YouTube streams return
-      final safeTitle = song.id; // Use ID as filename to avoid special-char issues
-      final filePath = p.join(downloadsDir.path, '$safeTitle.webm');
+      // Use safe title for filename
+      final safeTitle = song.title.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+      final tempWebmPath = p.join(downloadsDir.path, '${safeTitle}_temp.webm');
+      final finalMp3Path = p.join(downloadsDir.path, '$safeTitle.mp3');
 
-      // If already downloaded, return path immediately
-      if (await File(filePath).exists()) {
-        return filePath;
+      // If MP3 already exists, return path immediately
+      if (await File(finalMp3Path).exists()) {
+        return finalMp3Path;
       }
 
+      // Download as webm first
+      onProgress?.call(0.1); // Start progress
       await _dio.download(
         audioUrl,
-        filePath,
+        tempWebmPath,
         onReceiveProgress: (received, total) {
           if (total > 0) {
-            onProgress?.call(received / total);
+            // Download is 70% of total process
+            onProgress?.call((received / total) * 0.7);
           } else {
-            // Unknown total — show indeterminate progress at 50%
-            onProgress?.call(0.5);
+            onProgress?.call(0.35);
           }
         },
         deleteOnError: true,
       );
 
-      // Verify file was actually written and has content
-      final file = File(filePath);
-      if (!await file.exists() || await file.length() < 1024) {
-        print('Download error: file empty or missing');
+      // Verify webm file was downloaded
+      final webmFile = File(tempWebmPath);
+      if (!await webmFile.exists() || await webmFile.length() < 1024) {
+        print('Download error: webm file empty or missing');
         return null;
       }
 
-      return filePath;
+      // Convert webm to mp3 using FFmpeg
+      onProgress?.call(0.8); // Start conversion
+      final session = await FFmpegKit.execute(
+        '-i "$tempWebmPath" -q:a 0 -map a "$finalMp3Path"'
+      );
+
+      final returnCode = await session.getReturnCode();
+      if (returnCode!.isValueSuccess()) {
+        // Conversion successful, clean up temp file
+        await webmFile.delete();
+        
+        // Verify MP3 file was created
+        final mp3File = File(finalMp3Path);
+        if (await mp3File.exists() && await mp3File.length() > 1024) {
+          onProgress?.call(1.0); // Complete
+          return finalMp3Path;
+        } else {
+          print('Conversion error: MP3 file empty or missing');
+          await mp3File.delete();
+          return null;
+        }
+      } else {
+        print('FFmpeg conversion failed with return code: $returnCode');
+        // Clean up files on failure
+        await webmFile.delete();
+        await File(finalMp3Path).delete();
+        return null;
+      }
     } on DioException catch (e) {
       print('Download Dio error: ${e.type} — ${e.message}');
       print('Response: ${e.response?.statusCode}');
