@@ -22,9 +22,21 @@ class YouTubeService {
   }
 
   Future<String> getAudioStreamUrl(String videoId) async {
-    final manifest = await _yt.videos.streamsClient.getManifest(videoId);
-    final audioStream = manifest.audioOnly.withHighestBitrate();
-    return audioStream.url.toString();
+    try {
+      final manifest = await _yt.videos.streamsClient.getManifest(videoId);
+      final audioStream = manifest.audioOnly.withHighestBitrate();
+      final url = audioStream.url.toString();
+      
+      if (url.isEmpty) {
+        throw Exception('No audio stream available for video: $videoId');
+      }
+      
+      return url;
+    } on VideoUnavailableException {
+      throw Exception('Video $videoId is not available');
+    } catch (e) {
+      throw Exception('Failed to get audio stream for video $videoId: $e');
+    }
   }
 
   void close() {

@@ -11,6 +11,7 @@ class PlayerBar extends ConsumerWidget {
     final currentSong = ref.watch(currentSongProvider);
     final playerState = ref.watch(playerStateProvider).value;
     final isPlaying = playerState?.playing ?? false;
+    final isFetchingAudio = ref.watch(isFetchingAudioProvider);
 
     if (currentSong == null) return const SizedBox.shrink();
 
@@ -87,19 +88,28 @@ class PlayerBar extends ConsumerWidget {
                 }
               },
             ),
-            // Play / Pause
-            IconButton(
-              iconSize: 36,
-              icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-              onPressed: () {
-                final playerService = ref.read(playerServiceProvider);
-                if (isPlaying) {
-                  playerService.pause();
-                } else {
-                  playerService.resume();
-                }
-              },
-            ),
+            // Play / Pause / Loading
+            if (isFetchingAudio)
+              const SizedBox(
+                width: 36,
+                height: 36,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                ),
+              )
+            else
+              IconButton(
+                iconSize: 36,
+                icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+                onPressed: () {
+                  final playerService = ref.read(playerServiceProvider);
+                  if (isPlaying) {
+                    playerService.pause();
+                  } else {
+                    playerService.resume();
+                  }
+                },
+              ),
             // Skip Next
             IconButton(
               icon: const Icon(Icons.skip_next_rounded),

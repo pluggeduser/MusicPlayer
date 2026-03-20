@@ -164,21 +164,38 @@ Future<void> _playSongFromQueue(WidgetRef ref, Song song) async {
 
   if (song.localPath != null) {
     // Offline: play directly from file
-    await playerService.playSong(song);
+    try {
+      await playerService.playSong(song);
+    } catch (e) {
+      print('Failed to play local file: $e');
+      _showPlaybackError(ref, 'Failed to play local file: ${song.title}');
+    }
   } else {
     // Online: always fetch a fresh URL — YouTube URLs expire within minutes
     ref.read(isFetchingAudioProvider.notifier).state = true;
     try {
       final ytService = ref.read(ytServiceProvider);
       final url = await ytService.getAudioStreamUrl(song.id);
-      final songWithUrl = song.copyWith(audioUrl: url);
-      // Update song with resolved URL
-      ref.read(currentSongProvider.notifier).state = songWithUrl;
-      await playerService.playSong(songWithUrl);
+      if (url.isNotEmpty) {
+        final songWithUrl = song.copyWith(audioUrl: url);
+        // Update song with resolved URL
+        ref.read(currentSongProvider.notifier).state = songWithUrl;
+        await playerService.playSong(songWithUrl);
+      } else {
+        throw Exception('Received empty audio URL');
+      }
     } catch (e) {
       print('Failed to get audio stream URL: $e');
+      _showPlaybackError(ref, 'Failed to load audio for: ${song.title}. The video might be unavailable or region-restricted.');
     } finally {
       ref.read(isFetchingAudioProvider.notifier).state = false;
     }
   }
+}
+
+void _showPlaybackError(WidgetRef ref, String message) {
+  // You could add a snackbar or error state provider here
+  print('Playback Error: $message');
+  // For now, clear the current song to indicate playback failure
+  ref.read(currentSongProvider.notifier).state = null;
 }

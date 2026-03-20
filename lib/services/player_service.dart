@@ -52,12 +52,12 @@ class PlayerService {
       } else if (song.audioUrl != null) {
         await _player.setUrl(song.audioUrl!);
       } else {
-        // can't play without a URL — caller should fetch URL first
-        return;
+        throw Exception('No audio source available - song has no local path or audio URL');
       }
       await _player.play();
     } catch (e) {
-      print('Playback error: $e');
+      print('Playback error for song "${song.title}": $e');
+      rethrow; // Re-throw to let caller handle the error
     }
   }
 
